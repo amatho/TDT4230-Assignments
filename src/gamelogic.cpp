@@ -37,6 +37,9 @@ SceneNode* rootNode;
 SceneNode* boxNode;
 SceneNode* ballNode;
 SceneNode* padNode;
+SceneNode* dynLightNode;
+SceneNode* staticLightNode;
+SceneNode* staticLightNode2;
 
 double ballRadius = 3.0f;
 
@@ -126,10 +129,24 @@ void initGame(GLFWwindow* window, CommandLineOptions gameOptions) {
     boxNode  = createSceneNode();
     padNode  = createSceneNode();
     ballNode = createSceneNode();
+    dynLightNode = createSceneNode();
+    staticLightNode = createSceneNode();
+    staticLightNode2 = createSceneNode();
+
+    dynLightNode->nodeType = POINT_LIGHT;
+    staticLightNode->nodeType = POINT_LIGHT;
+    staticLightNode2->nodeType = POINT_LIGHT;
 
     rootNode->children.push_back(boxNode);
     rootNode->children.push_back(padNode);
     rootNode->children.push_back(ballNode);
+    padNode->children.push_back(dynLightNode);
+    rootNode->children.push_back(staticLightNode);
+    rootNode->children.push_back(staticLightNode2);
+
+    dynLightNode->position = glm::vec3(0.0, 10.0, 0.0);
+    staticLightNode->position = glm::vec3(5.0, -50.0, -100.0);
+    staticLightNode2->position = glm::vec3(-5.0, -50.0, -100.0);
 
     boxNode->vertexArrayObjectID  = boxVAO;
     boxNode->VAOIndexCount        = box.indices.size();
@@ -139,11 +156,6 @@ void initGame(GLFWwindow* window, CommandLineOptions gameOptions) {
 
     ballNode->vertexArrayObjectID = ballVAO;
     ballNode->VAOIndexCount       = sphere.indices.size();
-
-
-
-
-
 
     getTimeDeltaSeconds();
 
@@ -311,6 +323,7 @@ void updateFrame(GLFWwindow* window) {
     glm::mat4 projection = glm::perspective(glm::radians(80.0f), float(windowWidth) / float(windowHeight), 0.1f, 350.f);
 
     glm::vec3 cameraPosition = glm::vec3(0, 2, -20);
+    glUniform3fv(6, 1, glm::value_ptr(cameraPosition));
 
     // Some math to make the camera move in a nice way
     float lookRotation = -0.6 / (1 + exp(-5 * (padPositionX-0.5))) + 0.3;
@@ -334,14 +347,24 @@ void updateFrame(GLFWwindow* window) {
         boxNode->position.z - (boxDimensions.z/2) + (padDimensions.z/2) + (1 - padPositionZ) * (boxDimensions.z - padDimensions.z)
     };
 
-    updateNodeTransformations(rootNode, VP);
+    updateNodeTransformations(rootNode, glm::identity<glm::mat4>(), VP);
 
+    glUniform3fv(7, 1, glm::value_ptr(ballNode->position));
 
+    auto dynLightPos = glm::vec3(dynLightNode->currentModelMatrix * glm::vec4(0, 0, 0, 1));
+    glUniform3fv(shader->getUniformFromName("lights[0].position"), 1, glm::value_ptr(dynLightPos));
+    glUniform3fv(shader->getUniformFromName("lights[0].color"), 1, glm::value_ptr(glm::vec3(1.0, 0.0, 0.0)));
 
+    auto staticLightPos = glm::vec3(staticLightNode->currentModelMatrix * glm::vec4(0, 0, 0, 1));
+    glUniform3fv(shader->getUniformFromName("lights[1].position"), 1, glm::value_ptr(staticLightPos));
+    glUniform3fv(shader->getUniformFromName("lights[1].color"), 1, glm::value_ptr(glm::vec3(0.0, 1.0, 0.0)));
 
+    auto staticLightPos2 = glm::vec3(staticLightNode2->currentModelMatrix * glm::vec4(0, 0, 0, 1));
+    glUniform3fv(shader->getUniformFromName("lights[2].position"), 1, glm::value_ptr(staticLightPos2));
+    glUniform3fv(shader->getUniformFromName("lights[2].color"), 1, glm::value_ptr(glm::vec3(0.0, 0.0, 1.0)));
 }
 
-void updateNodeTransformations(SceneNode* node, glm::mat4 transformationThusFar) {
+void updateNodeTransformations(SceneNode* node, glm::mat4 modelThusFar, glm::mat4 mvpThusFar) {
     glm::mat4 transformationMatrix =
               glm::translate(node->position)
             * glm::translate(node->referencePoint)
@@ -351,7 +374,8 @@ void updateNodeTransformations(SceneNode* node, glm::mat4 transformationThusFar)
             * glm::scale(node->scale)
             * glm::translate(-node->referencePoint);
 
-    node->currentTransformationMatrix = transformationThusFar * transformationMatrix;
+    node->currentModelMatrix = modelThusFar * transformationMatrix;
+    node->currentMVPMatrix = mvpThusFar * transformationMatrix;
 
     switch(node->nodeType) {
         case GEOMETRY: break;
@@ -360,12 +384,15 @@ void updateNodeTransformations(SceneNode* node, glm::mat4 transformationThusFar)
     }
 
     for(SceneNode* child : node->children) {
-        updateNodeTransformations(child, node->currentTransformationMatrix);
+        updateNodeTransformations(child, node->currentModelMatrix, node->currentMVPMatrix);
     }
 }
 
 void renderNode(SceneNode* node) {
-    glUniformMatrix4fv(3, 1, GL_FALSE, glm::value_ptr(node->currentTransformationMatrix));
+    glUniformMatrix4fv(3, 1, GL_FALSE, glm::value_ptr(node->currentMVPMatrix));
+    glUniformMatrix4fv(4, 1, GL_FALSE, glm::value_ptr(node->currentModelMatrix));
+    glm::mat3 normalTransform = glm::mat3(glm::transpose(glm::inverse(node->currentModelMatrix)));
+    glUniformMatrix3fv(5, 1, GL_FALSE, glm::value_ptr(normalTransform));
 
     switch(node->nodeType) {
         case GEOMETRY:

@@ -26,6 +26,8 @@ namespace Gloom
     public:
         Shader() {
             mProgram = glCreateProgram();
+            mStatus = 0;
+            mLength = 0;
         }
 
         // Public member functions

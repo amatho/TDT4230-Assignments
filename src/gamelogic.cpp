@@ -16,10 +16,10 @@
 #include <utilities/shapes.h>
 #include <utilities/timeutils.h>
 #define GLM_ENABLE_EXPERIMENTAL
-#include <glm/gtx/transform.hpp>
-
+#include "textures.hpp"
 #include "utilities/glfont.h"
 #include "utilities/imageLoader.hpp"
+#include <glm/gtx/transform.hpp>
 
 enum KeyFrameAction { BOTTOM, TOP };
 
@@ -40,6 +40,8 @@ SceneNode *dynLightNode;
 // Nodes for the static lights
 SceneNode *staticLightNode;
 SceneNode *staticLightNode2;
+// Node for text
+SceneNode *textNode;
 
 double ballRadius = 3.0f;
 
@@ -74,8 +76,8 @@ double totalElapsedTime = debug_startTime;
 double gameElapsedTime = debug_startTime;
 
 double mouseSensitivity = 1.0;
-double lastMouseX = windowWidth / 2;
-double lastMouseY = windowHeight / 2;
+double lastMouseX = windowWidth / 2.0;
+double lastMouseY = windowHeight / 2.0;
 void mouseCallback(GLFWwindow *window, double x, double y) {
     int windowWidth, windowHeight;
     glfwGetWindowSize(window, &windowWidth, &windowHeight);
@@ -96,7 +98,7 @@ void mouseCallback(GLFWwindow *window, double x, double y) {
     if (padPositionZ < 0)
         padPositionZ = 0;
 
-    glfwSetCursorPos(window, windowWidth / 2, windowHeight / 2);
+    glfwSetCursorPos(window, windowWidth / 2.0, windowHeight / 2.0);
 }
 
 //// A few lines to help you if you've never used c++ structs
@@ -130,6 +132,15 @@ void initGame(GLFWwindow *window, CommandLineOptions gameOptions) {
     unsigned int boxVAO = generateBuffer(box);
     unsigned int padVAO = generateBuffer(pad);
 
+    // Load charmap image
+    PNGImage charmap = loadPNGFile("../res/textures/charmap.png");
+    // Generate charmap texture
+    GLuint charmapTex = generateTexture(charmap);
+    // Generate charmap mesh
+    Mesh charmapMesh = generateTextGeometryBuffer("Test", 39.0 / 29.0, 3712.0);
+    // Generate charmap VAO
+    GLuint charmapVao = generateBuffer(charmapMesh);
+
     // Construct scene
     rootNode = createSceneNode();
     boxNode = createSceneNode();
@@ -139,15 +150,22 @@ void initGame(GLFWwindow *window, CommandLineOptions gameOptions) {
     dynLightNode = createSceneNode();
     staticLightNode = createSceneNode();
     staticLightNode2 = createSceneNode();
+    // Create text nodes
+    textNode = createSceneNode();
 
     // Set the correct node type for the lights
     dynLightNode->nodeType = SceneNodeType::POINT_LIGHT;
     staticLightNode->nodeType = SceneNodeType::POINT_LIGHT;
     staticLightNode2->nodeType = SceneNodeType::POINT_LIGHT;
 
+    // Set the correct node type for the text nodes
+    textNode->nodeType = SceneNodeType::GEOMETRY_2D;
+
     rootNode->children.push_back(boxNode);
     rootNode->children.push_back(padNode);
     rootNode->children.push_back(ballNode);
+    // Add text node to the root node
+    rootNode->children.push_back(textNode);
     // Add lights to the scene graph. The dynamic light is attached to the pad
     padNode->children.push_back(dynLightNode);
     rootNode->children.push_back(staticLightNode);

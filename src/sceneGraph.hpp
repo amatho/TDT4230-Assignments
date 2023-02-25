@@ -13,7 +13,7 @@
 #include <stdbool.h>
 #include <vector>
 
-enum class SceneNodeType { GEOMETRY, POINT_LIGHT, SPOT_LIGHT };
+enum class SceneNodeType { GEOMETRY, POINT_LIGHT, SPOT_LIGHT, GEOMETRY_2D, GEOMETRY_NORMAL_MAP };
 
 struct SceneNode {
     SceneNode() {
@@ -29,6 +29,9 @@ struct SceneNode {
         currentModelMatrix = glm::mat4();
 
         nodeType = SceneNodeType::GEOMETRY;
+
+        texId = 0;
+        normalMapTexId = 0;
     }
 
     // A list of all children that belong to this node.
@@ -56,6 +59,12 @@ struct SceneNode {
 
     // Node type is used to determine how to handle the contents of a node
     SceneNodeType nodeType;
+
+    // Texture ID
+    unsigned int texId;
+
+    // Normal map texture ID
+    unsigned int normalMapTexId;
 };
 
 SceneNode *createSceneNode();

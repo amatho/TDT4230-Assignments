@@ -13,6 +13,7 @@ in layout(location = 2) vec3 fragPos;
 
 uniform layout(location = 6) vec3 cameraPos;
 uniform layout(location = 7) vec3 ballPos;
+uniform layout(location = 8) unsigned int features;
 uniform Light lights[NUM_LIGHTS];
 
 out vec4 color;

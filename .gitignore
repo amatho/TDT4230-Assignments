@@ -35,6 +35,9 @@
 /build/*
 !/build/.emptydirectory
 
+# Debug build directory
+/build-debug/*
+
 /.vscode/*
 /.vs/
 

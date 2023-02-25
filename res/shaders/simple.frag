@@ -58,7 +58,7 @@ void main()
         vec3 reflectDir = reflect(-lightDir, norm);
         vec3 viewDir = normalize(cameraPos - fragPos);
         float specularIntensity = pow(max(dot(viewDir, reflectDir), 0.0), 32);
-        // specular += specularIntensity * lights[i].color * attenuation * softShadowFactor;
+        specular += specularIntensity * lights[i].color * attenuation * softShadowFactor;
     }
 
     color = vec4(ambient + diffuse + specular + dither(textureCoordinates), 1.0);

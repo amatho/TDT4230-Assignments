@@ -25,9 +25,14 @@ enum KeyFrameAction { BOTTOM, TOP };
 
 #include <timestamps.h>
 
-enum class FeatureFlags : GLuint {
+#define TEXT_CHAR_WIDTH 29.0f
+#define TEXT_CHAR_HEIGHT 39.0f
+
+// Shader feature flags
+enum class ShaderFlags : GLuint {
     None = 0,
     PhongLighting = 1 << 0,
+    Text = 1 << 1,
 };
 
 double padPositionX = 0;
@@ -142,7 +147,9 @@ void initGame(GLFWwindow *window, CommandLineOptions gameOptions) {
     // Generate charmap texture
     GLuint charmapTex = generateTexture(charmap);
     // Generate charmap mesh
-    Mesh charmapMesh = generateTextGeometryBuffer("Test", 39.0 / 29.0, 3712.0);
+    std::string text = "The quick brown fox jumps over the lazy dog";
+    Mesh charmapMesh =
+        generateTextGeometryBuffer(text, TEXT_CHAR_HEIGHT / TEXT_CHAR_WIDTH, TEXT_CHAR_WIDTH * text.length());
     // Generate charmap VAO
     GLuint charmapVao = generateBuffer(charmapMesh);
 
@@ -181,6 +188,9 @@ void initGame(GLFWwindow *window, CommandLineOptions gameOptions) {
     staticLightNode->position = glm::vec3(5.0, -50.0, -100.0);
     staticLightNode2->position = glm::vec3(-5.0, -50.0, -100.0);
 
+    // Set the position of the text node
+    textNode->position = glm::vec3(0.0, float(windowHeight) - TEXT_CHAR_HEIGHT, 0.0);
+
     boxNode->vertexArrayObjectID = boxVAO;
     boxNode->VAOIndexCount = box.indices.size();
 
@@ -189,6 +199,13 @@ void initGame(GLFWwindow *window, CommandLineOptions gameOptions) {
 
     ballNode->vertexArrayObjectID = ballVAO;
     ballNode->VAOIndexCount = sphere.indices.size();
+
+    // Set VAO ID and index count for the charmap
+    textNode->vertexArrayObjectID = charmapVao;
+    textNode->VAOIndexCount = charmapMesh.indices.size();
+
+    // Set the texture ID of the charmap to the text node
+    textNode->texId = charmapTex;
 
     getTimeDeltaSeconds();
 
@@ -416,6 +433,7 @@ void updateNodeTransformations(SceneNode *node, glm::mat4 modelThusFar, glm::mat
     case SceneNodeType::SPOT_LIGHT:
         break;
     case SceneNodeType::GEOMETRY_2D:
+        node->currentMVPMatrix = glm::ortho(0.0f, float(windowWidth), 0.0f, float(windowHeight)) * transformationMatrix;
         break;
     case SceneNodeType::GEOMETRY_NORMAL_MAP:
         break;
@@ -434,7 +452,7 @@ void renderNode(SceneNode *node) {
 
     switch (node->nodeType) {
     case SceneNodeType::GEOMETRY:
-        glUniform1ui(8, static_cast<GLuint>(FeatureFlags::PhongLighting));
+        glUniform1ui(8, static_cast<GLuint>(ShaderFlags::PhongLighting));
         if (node->vertexArrayObjectID != -1) {
             glBindVertexArray(node->vertexArrayObjectID);
             glDrawElements(GL_TRIANGLES, node->VAOIndexCount, GL_UNSIGNED_INT, nullptr);
@@ -445,6 +463,14 @@ void renderNode(SceneNode *node) {
     case SceneNodeType::SPOT_LIGHT:
         break;
     case SceneNodeType::GEOMETRY_2D:
+        // Bind the texture of the node to a texture unit
+        glBindTextureUnit(0, node->texId);
+
+        glUniform1ui(8, static_cast<GLuint>(ShaderFlags::Text));
+        if (node->vertexArrayObjectID != -1) {
+            glBindVertexArray(node->vertexArrayObjectID);
+            glDrawElements(GL_TRIANGLES, node->VAOIndexCount, GL_UNSIGNED_INT, nullptr);
+        }
         break;
     case SceneNodeType::GEOMETRY_NORMAL_MAP:
         break;

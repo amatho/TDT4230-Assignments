@@ -34,10 +34,12 @@ Mesh generateTextGeometryBuffer(std::string text, float characterHeightOverWidth
         mesh.indices.at(6 * i + 4) = 4 * i + 2;
         mesh.indices.at(6 * i + 5) = 4 * i + 3;
 
-        mesh.textureCoordinates.at(4 * i + 0) = {baseXCoordinate / totalTextWidth, 0};
-        mesh.textureCoordinates.at(4 * i + 1) = {(baseXCoordinate + characterWidth) / totalTextWidth, 0};
-        mesh.textureCoordinates.at(4 * i + 2) = {(baseXCoordinate + characterWidth) / totalTextWidth, 1};
-        mesh.textureCoordinates.at(4 * i + 3) = {baseXCoordinate / totalTextWidth, 1};
+        float u = 1.0 / 128.0;
+        int charCode = text.at(i);
+        mesh.textureCoordinates.at(4 * i + 0) = {charCode * u, 0};
+        mesh.textureCoordinates.at(4 * i + 1) = {(charCode + 1) * u, 0};
+        mesh.textureCoordinates.at(4 * i + 2) = {(charCode + 1) * u, 1};
+        mesh.textureCoordinates.at(4 * i + 3) = {charCode * u, 1};
     }
 
     return mesh;

@@ -17,6 +17,8 @@ uniform layout(location = 7) vec3 ballPos;
 uniform layout(location = 8) uint features;
 uniform Light lights[NUM_LIGHTS];
 
+layout(binding = 0) uniform sampler2D sampler;
+
 out vec4 color;
 
 float rand(vec2 co) { return fract(sin(dot(co.xy, vec2(12.9898,78.233))) * 43758.5453); }
@@ -26,8 +28,9 @@ vec3 reject(vec3 from, vec3 onto) {
     return from - onto * dot(from, onto) / dot(onto, onto);
 }
 
-// Feature flags
-const uint PhongLighting = 1;
+// Shader feature flags
+const uint PhongLighting = 1 << 0;
+const uint Text = 1 << 1;
 
 vec3 ambient = vec3(0.0);
 float ballRadius = 3.0;
@@ -68,6 +71,8 @@ void main()
         }
 
         color = vec4(ambient + diffuse + specular + dither(textureCoordinates), 1.0);
+    } else if (IS_ENABLED(Text)) {
+        color = texture(sampler, textureCoordinates);
     } else {
         color = vec4(normal, 1.0);
     }

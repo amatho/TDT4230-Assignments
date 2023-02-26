@@ -33,7 +33,14 @@ enum class ShaderFlags : GLuint {
     None = 0,
     PhongLighting = 1 << 0,
     Text = 1 << 1,
+    DiffuseMap = 1 << 2,
+    NormalMap = 1 << 3,
 };
+
+ShaderFlags operator|(ShaderFlags lhs, ShaderFlags rhs) {
+    return static_cast<ShaderFlags>(static_cast<std::underlying_type<ShaderFlags>::type>(lhs) |
+                                    static_cast<std::underlying_type<ShaderFlags>::type>(rhs));
+}
 
 double padPositionX = 0;
 double padPositionZ = 0;
@@ -45,11 +52,8 @@ SceneNode *rootNode;
 SceneNode *boxNode;
 SceneNode *ballNode;
 SceneNode *padNode;
-// Node for the dynamic (moving) light
-SceneNode *dynLightNode;
-// Nodes for the static lights
-SceneNode *staticLightNode;
-SceneNode *staticLightNode2;
+// Node for the light
+SceneNode *lightNode;
 // Node for text
 SceneNode *textNode;
 
@@ -153,24 +157,24 @@ void initGame(GLFWwindow *window, CommandLineOptions gameOptions) {
     // Generate charmap VAO
     GLuint charmapVao = generateBuffer(charmapMesh);
 
+    PNGImage brick = loadPNGFile("../res/textures/Brick03_col.png");
+    GLuint brickTex = generateTexture(brick);
+    PNGImage brickNormal = loadPNGFile("../res/textures/Brick03_nrm.png");
+    GLuint brickNormalTex = generateTexture(brickNormal);
+
     // Construct scene
     rootNode = createSceneNode();
     boxNode = createSceneNode();
     padNode = createSceneNode();
     ballNode = createSceneNode();
     // Create light nodes
-    dynLightNode = createSceneNode();
-    staticLightNode = createSceneNode();
-    staticLightNode2 = createSceneNode();
+    lightNode = createSceneNode();
     // Create text nodes
     textNode = createSceneNode();
 
-    // Set the correct node type for the lights
-    dynLightNode->nodeType = SceneNodeType::POINT_LIGHT;
-    staticLightNode->nodeType = SceneNodeType::POINT_LIGHT;
-    staticLightNode2->nodeType = SceneNodeType::POINT_LIGHT;
-
-    // Set the correct node type for the text nodes
+    // Set the correct node types
+    boxNode->nodeType = SceneNodeType::GEOMETRY_NORMAL_MAP;
+    lightNode->nodeType = SceneNodeType::POINT_LIGHT;
     textNode->nodeType = SceneNodeType::GEOMETRY_2D;
 
     rootNode->children.push_back(boxNode);
@@ -178,15 +182,11 @@ void initGame(GLFWwindow *window, CommandLineOptions gameOptions) {
     rootNode->children.push_back(ballNode);
     // Add text node to the root node
     rootNode->children.push_back(textNode);
-    // Add lights to the scene graph. The dynamic light is attached to the pad
-    padNode->children.push_back(dynLightNode);
-    rootNode->children.push_back(staticLightNode);
-    rootNode->children.push_back(staticLightNode2);
+    // Add lights to the scene graph
+    rootNode->children.push_back(lightNode);
 
     // Set the relative positions of the lights
-    dynLightNode->position = glm::vec3(0.0, 10.0, 0.0);
-    staticLightNode->position = glm::vec3(5.0, -50.0, -100.0);
-    staticLightNode2->position = glm::vec3(-5.0, -50.0, -100.0);
+    lightNode->position = glm::vec3(0.0, -20.0, -75.0);
 
     // Set the position of the text node
     textNode->position = glm::vec3(0.0, float(windowHeight) - TEXT_CHAR_HEIGHT, 0.0);
@@ -204,7 +204,9 @@ void initGame(GLFWwindow *window, CommandLineOptions gameOptions) {
     textNode->vertexArrayObjectID = charmapVao;
     textNode->VAOIndexCount = charmapMesh.indices.size();
 
-    // Set the texture ID of the charmap to the text node
+    // Set the texture IDs
+    boxNode->texId = brickTex;
+    boxNode->normalMapTexId = brickNormalTex;
     textNode->texId = charmapTex;
 
     getTimeDeltaSeconds();
@@ -402,17 +404,9 @@ void updateFrame(GLFWwindow *window) {
     glUniform3fv(7, 1, glm::value_ptr(ballNode->position));
 
     // Populate the lights uniform array with the dynamic and static lights
-    auto dynLightPos = glm::vec3(dynLightNode->currentModelMatrix * glm::vec4(0, 0, 0, 1));
-    glUniform3fv(shader->getUniformFromName("lights[0].position"), 1, glm::value_ptr(dynLightPos));
-    glUniform3fv(shader->getUniformFromName("lights[0].color"), 1, glm::value_ptr(glm::vec3(1.0, 0.0, 0.0)));
-
-    auto staticLightPos = glm::vec3(staticLightNode->currentModelMatrix * glm::vec4(0, 0, 0, 1));
-    glUniform3fv(shader->getUniformFromName("lights[1].position"), 1, glm::value_ptr(staticLightPos));
-    glUniform3fv(shader->getUniformFromName("lights[1].color"), 1, glm::value_ptr(glm::vec3(0.0, 1.0, 0.0)));
-
-    auto staticLightPos2 = glm::vec3(staticLightNode2->currentModelMatrix * glm::vec4(0, 0, 0, 1));
-    glUniform3fv(shader->getUniformFromName("lights[2].position"), 1, glm::value_ptr(staticLightPos2));
-    glUniform3fv(shader->getUniformFromName("lights[2].color"), 1, glm::value_ptr(glm::vec3(0.0, 0.0, 1.0)));
+    auto lightPos = glm::vec3(lightNode->currentModelMatrix * glm::vec4(0, 0, 0, 1));
+    glUniform3fv(shader->getUniformFromName("lights[0].position"), 1, glm::value_ptr(lightPos));
+    glUniform3fv(shader->getUniformFromName("lights[0].color"), 1, glm::value_ptr(glm::vec3(1.0, 1.0, 1.0)));
 }
 
 void updateNodeTransformations(SceneNode *node, glm::mat4 modelThusFar, glm::mat4 mvpThusFar) {
@@ -473,6 +467,16 @@ void renderNode(SceneNode *node) {
         }
         break;
     case SceneNodeType::GEOMETRY_NORMAL_MAP:
+        // Bind textures
+        glBindTextureUnit(0, node->texId);
+        glBindTextureUnit(1, node->normalMapTexId);
+
+        glUniform1ui(
+            8, static_cast<GLuint>(ShaderFlags::PhongLighting | ShaderFlags::DiffuseMap | ShaderFlags::NormalMap));
+        if (node->vertexArrayObjectID != -1) {
+            glBindVertexArray(node->vertexArrayObjectID);
+            glDrawElements(GL_TRIANGLES, node->VAOIndexCount, GL_UNSIGNED_INT, nullptr);
+        }
         break;
     }
 

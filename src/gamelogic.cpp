@@ -25,6 +25,11 @@ enum KeyFrameAction { BOTTOM, TOP };
 
 #include <timestamps.h>
 
+enum class FeatureFlags : GLuint {
+    None = 0,
+    PhongLighting = 1 << 0,
+};
+
 double padPositionX = 0;
 double padPositionZ = 0;
 
@@ -410,6 +415,10 @@ void updateNodeTransformations(SceneNode *node, glm::mat4 modelThusFar, glm::mat
         break;
     case SceneNodeType::SPOT_LIGHT:
         break;
+    case SceneNodeType::GEOMETRY_2D:
+        break;
+    case SceneNodeType::GEOMETRY_NORMAL_MAP:
+        break;
     }
 
     for (SceneNode *child : node->children) {
@@ -425,6 +434,7 @@ void renderNode(SceneNode *node) {
 
     switch (node->nodeType) {
     case SceneNodeType::GEOMETRY:
+        glUniform1ui(8, static_cast<GLuint>(FeatureFlags::PhongLighting));
         if (node->vertexArrayObjectID != -1) {
             glBindVertexArray(node->vertexArrayObjectID);
             glDrawElements(GL_TRIANGLES, node->VAOIndexCount, GL_UNSIGNED_INT, nullptr);
@@ -433,6 +443,10 @@ void renderNode(SceneNode *node) {
     case SceneNodeType::POINT_LIGHT:
         break;
     case SceneNodeType::SPOT_LIGHT:
+        break;
+    case SceneNodeType::GEOMETRY_2D:
+        break;
+    case SceneNodeType::GEOMETRY_NORMAL_MAP:
         break;
     }
 
